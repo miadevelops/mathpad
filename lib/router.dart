@@ -32,6 +32,11 @@ final GoRouter router = GoRouter(
           _fadeTransition(state, const ConfigScreen()),
     ),
     GoRoute(
+      path: '/settings',
+      pageBuilder: (context, state) =>
+          _fadeTransition(state, const SettingsScreen()),
+    ),
+    GoRoute(
       path: '/exercise',
       pageBuilder: (context, state) =>
           _fadeTransition(state, const ExerciseScreen()),
@@ -42,6 +47,16 @@ final GoRouter router = GoRouter(
         final result = state.extra as SessionResult?;
         return _fadeTransition(state, ResultsScreen(result: result));
       },
+    ),
+    GoRoute(
+      path: '/history',
+      pageBuilder: (context, state) =>
+          _fadeTransition(state, const HistoryScreen()),
+    ),
+    GoRoute(
+      path: '/achievements',
+      pageBuilder: (context, state) =>
+          _fadeTransition(state, const AchievementsScreen()),
     ),
   ],
 );

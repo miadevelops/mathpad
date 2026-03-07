@@ -7,10 +7,14 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/models.dart';
 import '../services/math_engine.dart';
 import '../services/recognition_service.dart';
+import '../services/settings_service.dart';
+import '../services/history_service.dart';
+import '../services/achievement_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/confetti_overlay.dart';
 import '../widgets/digit_reveal.dart';
 import '../widgets/drawing_canvas.dart';
+import '../widgets/achievement_popup.dart';
 
 /// The core gameplay screen: presents math problems one by one,
 /// lets kids draw answers digit-by-digit, validates, and tracks results.
@@ -30,6 +34,7 @@ class _ExerciseScreenState extends State<ExerciseScreen>
 
   // ── Session state ──
   late List<MathProblem> _problems;
+  SessionConfig? _sessionConfig;
   int _currentIndex = 0;
   int _correctCount = 0;
   DateTime? _sessionStart;
@@ -64,25 +69,24 @@ class _ExerciseScreenState extends State<ExerciseScreen>
   void initState() {
     super.initState();
     _recognitionService.initialize();
+    _initSession();
+  }
+
+  Future<void> _initSession() async {
+    final config = await SettingsService.instance.load();
+    if (!mounted) return;
+    setState(() {
+      _sessionConfig = config;
+      _problems = _engine.generateSession(config);
+      _sessionStart = DateTime.now();
+      _initialized = true;
+    });
+    _setupProblem(_problems[0]);
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!_initialized) {
-      final config =
-          GoRouterState.of(context).extra as SessionConfig?;
-      if (config == null) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) context.go('/');
-        });
-        return;
-      }
-      _problems = _engine.generateSession(config);
-      _sessionStart = DateTime.now();
-      _setupProblem(_problems[0]);
-      _initialized = true;
-    }
   }
 
   @override
@@ -275,13 +279,54 @@ class _ExerciseScreenState extends State<ExerciseScreen>
     });
   }
 
+  Future<void> _saveAndNavigate(SessionResult result) async {
+    final config = _sessionConfig!;
+    final record = SessionRecord.fromResult(
+      result,
+      config.difficulty,
+      config.selectedOperations,
+    );
+
+    // Track division correct for achievements
+    if (config.selectedOperations.contains(OperationType.division)) {
+      // Count first-try correct on division problems
+      int divCorrect = 0;
+      for (final r in result.results) {
+        if (r.problem.operation == OperationType.division &&
+            r.correctOnFirstTry) {
+          divCorrect++;
+        }
+      }
+      if (divCorrect > 0) {
+        await HistoryService.instance.addDivisionCorrect(divCorrect);
+      }
+    }
+
+    await HistoryService.instance.saveSession(record);
+    final stats = await HistoryService.instance.getTotalStats();
+    final divTotal = await HistoryService.instance.getDivisionCorrect();
+    final newAchievements = await AchievementService.instance
+        .checkNewAchievements(record, stats, divTotal);
+
+    if (!mounted) return;
+
+    // Show achievement popups if any
+    if (newAchievements.isNotEmpty) {
+      await showAchievementPopups(context, newAchievements);
+    }
+
+    if (!mounted) return;
+    context.go('/results', extra: result);
+  }
+
   void _advanceToNext() {
     if (_currentIndex + 1 >= _problems.length) {
       // Session complete
       final duration = DateTime.now().difference(_sessionStart!);
       final sessionResult =
           SessionResult(results: _results, duration: duration);
-      context.go('/results', extra: sessionResult);
+      // Save history and check achievements
+      _saveAndNavigate(sessionResult);
       return;
     }
 

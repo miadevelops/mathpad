@@ -5,3 +5,5 @@ export 'session_config.dart';
 export 'math_problem.dart';
 export 'digit_answer.dart';
 export 'session_result.dart';
+export 'session_record.dart';
+export 'achievement.dart';

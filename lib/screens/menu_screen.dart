@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../models/models.dart';
+import '../services/settings_service.dart';
+import '../services/history_service.dart';
 import '../theme/app_theme.dart';
 
 class MenuScreen extends StatefulWidget {
@@ -18,6 +21,9 @@ class _MenuScreenState extends State<MenuScreen>
   late final AnimationController _controller;
   late final Animation<double> _bounceScale;
   late final Animation<double> _fadeIn;
+
+  SessionConfig? _config;
+  HistoryStats? _stats;
 
   @override
   void initState() {
@@ -41,6 +47,18 @@ class _MenuScreenState extends State<MenuScreen>
     );
 
     _controller.forward();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final config = await SettingsService.instance.load();
+    final stats = await HistoryService.instance.getTotalStats();
+    if (mounted) {
+      setState(() {
+        _config = config;
+        _stats = stats;
+      });
+    }
   }
 
   @override
@@ -66,8 +84,40 @@ class _MenuScreenState extends State<MenuScreen>
         ),
         child: Stack(
           children: [
-            // Scattered math symbols
             const _MathSymbolsBackground(),
+
+            // Top-right icons
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.emoji_events_outlined, size: 28),
+                      tooltip: 'Achievements',
+                      onPressed: () => context.go('/achievements'),
+                    ),
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: const Icon(Icons.history, size: 28),
+                      tooltip: 'History',
+                      onPressed: () => context.go('/history'),
+                    ),
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: const Icon(Icons.settings_outlined, size: 28),
+                      tooltip: 'Settings',
+                      onPressed: () async {
+                        await context.push('/settings');
+                        // Reload settings when returning
+                        _loadData();
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
             // Main content
             Center(
@@ -107,20 +157,101 @@ class _MenuScreenState extends State<MenuScreen>
                       ),
                     ),
                   ),
-                  const SizedBox(height: 64),
+
+                  // Level display
+                  if (_stats != null && _stats!.totalXP > 0) ...[
+                    const SizedBox(height: 16),
+                    FadeTransition(
+                      opacity: _fadeIn,
+                      child: _LevelBadge(stats: _stats!),
+                    ),
+                  ],
+
+                  const SizedBox(height: 48),
 
                   // START button
                   FadeTransition(
                     opacity: _fadeIn,
                     child: _StartButton(
-                      onPressed: () => context.go('/config'),
+                      onPressed: () => context.go('/exercise'),
                     ),
                   ),
+
+                  // Current config summary
+                  if (_config != null) ...[
+                    const SizedBox(height: 20),
+                    FadeTransition(
+                      opacity: _fadeIn,
+                      child: _ConfigSummary(config: _config!),
+                    ),
+                  ],
                 ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _LevelBadge extends StatelessWidget {
+  final HistoryStats stats;
+  const _LevelBadge({required this.stats});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          'Level ${stats.level}',
+          style: GoogleFonts.comicNeue(
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+            color: AppTheme.primaryBlue,
+          ),
+        ),
+        const SizedBox(height: 6),
+        SizedBox(
+          width: 160,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: stats.levelProgress,
+              backgroundColor: AppTheme.primaryBlue.withValues(alpha: 0.12),
+              valueColor: const AlwaysStoppedAnimation(AppTheme.primaryBlue),
+              minHeight: 8,
+            ),
+          ),
+        ),
+        if (stats.currentStreak > 0) ...[
+          const SizedBox(height: 8),
+          Text(
+            '${stats.currentStreak} session streak',
+            style: GoogleFonts.comicNeue(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.accentOrange,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _ConfigSummary extends StatelessWidget {
+  final SessionConfig config;
+  const _ConfigSummary({required this.config});
+
+  @override
+  Widget build(BuildContext context) {
+    final ops = config.selectedOperations.map((o) => o.symbol).join(' ');
+    return Text(
+      '${config.difficulty.label}  ·  $ops  ·  ${config.operationCount} problems',
+      style: GoogleFonts.comicNeue(
+        fontSize: 16,
+        color: AppTheme.textSecondary,
       ),
     );
   }
@@ -187,14 +318,14 @@ class _StartButtonState extends State<_StartButton>
   }
 }
 
-// ── Background symbols ────────────────────────────────────
+// ── Background symbols (opacity increased) ────────────────
 class _MathSymbolsBackground extends StatelessWidget {
   const _MathSymbolsBackground();
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
-    final rng = math.Random(42); // deterministic layout
+    final rng = math.Random(42);
     const symbols = [
       '+', '−', '×', '÷', '=',
       '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
@@ -208,7 +339,7 @@ class _MathSymbolsBackground extends StatelessWidget {
           final x = rng.nextDouble() * size.width;
           final y = rng.nextDouble() * size.height;
           final rotation = (rng.nextDouble() - 0.5) * 0.6;
-          final fontSize = 24.0 + rng.nextDouble() * 28;
+          final fontSize = 28.0 + rng.nextDouble() * 32;
 
           return Positioned(
             left: x,
@@ -220,7 +351,7 @@ class _MathSymbolsBackground extends StatelessWidget {
                 style: GoogleFonts.comicNeue(
                   fontSize: fontSize,
                   fontWeight: FontWeight.w700,
-                  color: AppTheme.primaryBlue.withValues(alpha: 0.07),
+                  color: AppTheme.primaryBlue.withValues(alpha: 0.18),
                 ),
               ),
             ),
