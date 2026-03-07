@@ -1,30 +1,46 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'models/models.dart';
 import 'screens/screens.dart';
+
+CustomTransitionPage<void> _fadeTransition(
+  GoRouterState state,
+  Widget child,
+) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    child: child,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      return FadeTransition(opacity: animation, child: child);
+    },
+    transitionDuration: const Duration(milliseconds: 300),
+  );
+}
 
 final GoRouter router = GoRouter(
   initialLocation: '/',
   routes: [
     GoRoute(
       path: '/',
-      builder: (context, state) => const MenuScreen(),
+      pageBuilder: (context, state) =>
+          _fadeTransition(state, const MenuScreen()),
     ),
     GoRoute(
       path: '/config',
-      builder: (context, state) => const ConfigScreen(),
+      pageBuilder: (context, state) =>
+          _fadeTransition(state, const ConfigScreen()),
     ),
     GoRoute(
       path: '/exercise',
-      builder: (context, state) {
-        return const ExerciseScreen();
-      },
+      pageBuilder: (context, state) =>
+          _fadeTransition(state, const ExerciseScreen()),
     ),
     GoRoute(
       path: '/results',
-      builder: (context, state) {
+      pageBuilder: (context, state) {
         final result = state.extra as SessionResult?;
-        return ResultsScreen(result: result);
+        return _fadeTransition(state, ResultsScreen(result: result));
       },
     ),
   ],

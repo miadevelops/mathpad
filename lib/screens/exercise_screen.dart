@@ -8,6 +8,7 @@ import '../models/models.dart';
 import '../services/math_engine.dart';
 import '../services/recognition_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/confetti_overlay.dart';
 import '../widgets/digit_reveal.dart';
 import '../widgets/drawing_canvas.dart';
 
@@ -25,6 +26,7 @@ class _ExerciseScreenState extends State<ExerciseScreen>
   // ── Services ──
   final MathEngine _engine = MathEngine();
   final RecognitionService _recognitionService = RecognitionService();
+  final ConfettiController _confettiController = ConfettiController();
 
   // ── Session state ──
   late List<MathProblem> _problems;
@@ -86,6 +88,7 @@ class _ExerciseScreenState extends State<ExerciseScreen>
   @override
   void dispose() {
     _recognitionService.dispose();
+    _confettiController.dispose();
     _slideController?.dispose();
     _bannerController?.dispose();
     _shakeController?.dispose();
@@ -172,6 +175,7 @@ class _ExerciseScreenState extends State<ExerciseScreen>
   }
 
   void _handleCorrect() {
+    _confettiController.fire();
     setState(() {
       _showingResult = true;
       for (int i = 0; i < _boxStates.length; i++) {
@@ -358,42 +362,49 @@ class _ExerciseScreenState extends State<ExerciseScreen>
     final progress = (_currentIndex + 1) / _problems.length;
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFFE8F0FE), AppTheme.background],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // ── Top bar ──
-              _buildTopBar(progress),
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFFE8F0FE), AppTheme.background],
+              ),
+            ),
+            child: SafeArea(
+              child: Column(
+                children: [
+                  // ── Top bar ──
+                  _buildTopBar(progress),
 
-              // ── Main content ──
-              Expanded(
-                child: Center(
-                  child: SingleChildScrollView(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 600),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: _buildProblemArea(problem),
+                  // ── Main content ──
+                  Expanded(
+                    child: Center(
+                      child: SingleChildScrollView(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 600),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: _buildProblemArea(problem),
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
+
+                  // ── Bottom buttons ──
+                  _buildBottomButtons(),
+
+                  const SizedBox(height: 24),
+                ],
               ),
-
-              // ── Bottom buttons ──
-              _buildBottomButtons(),
-
-              const SizedBox(height: 24),
-            ],
+            ),
           ),
-        ),
+          Positioned.fill(
+            child: ConfettiOverlay(controller: _confettiController),
+          ),
+        ],
       ),
     );
   }

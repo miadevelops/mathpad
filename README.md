@@ -1,16 +1,34 @@
-# mathpad
+# MathPad
 
-A new Flutter project.
+iPad-first math practice app for kids. Practice addition, subtraction, multiplication, and division with handwritten input.
+
+## Features
+
+- Vertical arithmetic layout (like on paper)
+- Handwritten digit input with recognition
+- Three difficulty levels (Easy, Medium, Hard)
+- Carry/borrow indicators for learning
+- Confetti celebrations for correct answers
+- Progress tracking and session results
+
+## Tech Stack
+
+- Flutter (iOS + Android)
+- Google ML Kit Digital Ink Recognition
+- Custom drawing canvas with stroke recognition
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+1. Make sure you have [Flutter](https://flutter.dev/docs/get-started/install) installed.
+2. Clone this repository.
+3. Run `flutter pub get` to install dependencies.
+4. Run `flutter run` to launch the app on a connected device or emulator.
 
-A few resources to get you started if this is your first Flutter project:
+```bash
+flutter pub get
+flutter run
+```
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## Screenshots
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+(coming soon)
