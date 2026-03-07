@@ -125,9 +125,11 @@ class _ExerciseScreenState extends State<ExerciseScreen>
   Future<void> _onDrawingComplete(
       int boxIndex, List<List<Offset>> strokes) async {
     if (_showingResult) return;
+    final timestamps = _canvasKeys[boxIndex].currentState?.timestamps;
     final digit = await _recognitionService.recognizeDigit(
       strokes,
-      const Size(90, 112), // approximate canvas size
+      const Size(160, 200), // approximate canvas size
+      timestamps: timestamps,
     );
     if (!mounted) return;
     setState(() {
@@ -383,7 +385,7 @@ class _ExerciseScreenState extends State<ExerciseScreen>
                     child: Center(
                       child: SingleChildScrollView(
                         child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 600),
+                          constraints: const BoxConstraints(maxWidth: 1330),
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 24),
                             child: _buildProblemArea(problem),
@@ -555,8 +557,8 @@ class _ExerciseScreenState extends State<ExerciseScreen>
     // Add 1 extra column on the left for the operator symbol.
     final totalCols = maxCols + 1;
 
-    const boxSize = 56.0; // digit box width
-    const boxSpacing = 6.0;
+    const boxSize = 160.0; // digit box width
+    const boxSpacing = 17.0;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -574,7 +576,7 @@ class _ExerciseScreenState extends State<ExerciseScreen>
           boxSpacing: boxSpacing,
         ),
 
-        const SizedBox(height: 4),
+        const SizedBox(height: 11),
 
         // ── Second operand row (with operator) ──
         _buildOperandRow(
@@ -586,19 +588,19 @@ class _ExerciseScreenState extends State<ExerciseScreen>
           operator: problem.operation.symbol,
         ),
 
-        const SizedBox(height: 4),
+        const SizedBox(height: 11),
 
         // ── Separator line ──
         SizedBox(
           width: totalCols * (boxSize + boxSpacing),
           child: const Divider(
-            thickness: 3,
+            thickness: 7,
             color: AppTheme.textPrimary,
-            height: 12,
+            height: 23,
           ),
         ),
 
-        const SizedBox(height: 8),
+        const SizedBox(height: 15),
 
         // ── Answer row ──
         _buildAnswerRow(boxSize, boxSpacing, maxCols, totalCols),
@@ -632,7 +634,7 @@ class _ExerciseScreenState extends State<ExerciseScreen>
                       ? Text(
                           '1',
                           style: GoogleFonts.comicNeue(
-                            fontSize: 18,
+                          fontSize: 46,
                             fontWeight: FontWeight.w600,
                             color: AppTheme.textSecondary
                                 .withValues(alpha: 0.5),
@@ -671,7 +673,7 @@ class _ExerciseScreenState extends State<ExerciseScreen>
               child: Text(
                 operator ?? '',
                 style: GoogleFonts.comicNeue(
-                  fontSize: 36,
+                  fontSize: 103,
                   fontWeight: FontWeight.w700,
                   color: AppTheme.primaryBlue,
                 ),
@@ -691,7 +693,7 @@ class _ExerciseScreenState extends State<ExerciseScreen>
                 child: Text(
                   ch,
                   style: GoogleFonts.courierPrime(
-                    fontSize: 40,
+                    fontSize: 114,
                     fontWeight: FontWeight.w700,
                     color: AppTheme.textPrimary,
                   ),
@@ -721,7 +723,7 @@ class _ExerciseScreenState extends State<ExerciseScreen>
                   ? Text(
                       '−',
                       style: GoogleFonts.comicNeue(
-                        fontSize: 36,
+                        fontSize: 103,
                         fontWeight: FontWeight.w700,
                         color: AppTheme.errorRed,
                       ),
@@ -778,7 +780,7 @@ class _ExerciseScreenState extends State<ExerciseScreen>
           strokes: strokes,
           digit: digit,
           result: result,
-          strokeWidth: 6,
+          strokeWidth: 13,
         ),
       );
     } else if (state == _DigitBoxState.correct && digit != null) {
@@ -789,7 +791,7 @@ class _ExerciseScreenState extends State<ExerciseScreen>
           child: Text(
             '$digit',
             style: GoogleFonts.courierPrime(
-              fontSize: 40,
+              fontSize: 114,
               fontWeight: FontWeight.w700,
               color: AppTheme.successGreen,
             ),
@@ -815,7 +817,7 @@ class _ExerciseScreenState extends State<ExerciseScreen>
                   child: Text(
                     '$digit',
                     style: GoogleFonts.courierPrime(
-                      fontSize: 40,
+                      fontSize: 114,
                       fontWeight: FontWeight.w700,
                       color: AppTheme.errorRed,
                     ),
@@ -826,7 +828,7 @@ class _ExerciseScreenState extends State<ExerciseScreen>
                 child: Text(
                   '$digit',
                   style: GoogleFonts.courierPrime(
-                    fontSize: 40,
+                    fontSize: 114,
                     fontWeight: FontWeight.w700,
                     color: AppTheme.errorRed,
                   ),
@@ -842,7 +844,7 @@ class _ExerciseScreenState extends State<ExerciseScreen>
           child: Text(
             '$digit',
             style: GoogleFonts.courierPrime(
-              fontSize: 40,
+              fontSize: 114,
               fontWeight: FontWeight.w700,
               color: AppTheme.textSecondary,
             ),
@@ -858,7 +860,7 @@ class _ExerciseScreenState extends State<ExerciseScreen>
           key: _canvasKeys[index],
           onDrawingComplete: (strokes) =>
               _onDrawingComplete(index, strokes),
-          strokeWidth: 6,
+          strokeWidth: 13,
         ),
       );
     }
@@ -869,6 +871,8 @@ class _ExerciseScreenState extends State<ExerciseScreen>
           ? () => _clearBox(index)
           : null,
       child: Container(
+        width: boxSize,
+        height: boxSize * 1.25,
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(12),

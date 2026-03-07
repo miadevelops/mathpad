@@ -47,7 +47,9 @@ class DrawingCanvas extends StatefulWidget {
 
 class DrawingCanvasState extends State<DrawingCanvas> {
   final List<List<Offset>> _strokes = [];
+  final List<List<int>> _timestamps = [];
   List<Offset>? _currentStroke;
+  List<int>? _currentTimestamps;
   Timer? _debounce;
 
   /// Clear all strokes programmatically.
@@ -55,7 +57,9 @@ class DrawingCanvasState extends State<DrawingCanvas> {
     _debounce?.cancel();
     setState(() {
       _strokes.clear();
+      _timestamps.clear();
       _currentStroke = null;
+      _currentTimestamps = null;
     });
     widget.onCleared?.call();
   }
@@ -64,6 +68,10 @@ class DrawingCanvasState extends State<DrawingCanvas> {
   List<List<Offset>> get strokes =>
       _strokes.map((s) => List<Offset>.from(s)).toList();
 
+  /// Timestamps in milliseconds for each point (parallel to [strokes]).
+  List<List<int>> get timestamps =>
+      _timestamps.map((t) => List<int>.from(t)).toList();
+
   // ── Gesture handlers ────────────────────────────────────
 
   void _onPanStart(DragStartDetails details) {
@@ -71,6 +79,7 @@ class DrawingCanvasState extends State<DrawingCanvas> {
     final point = details.localPosition;
     setState(() {
       _currentStroke = [point];
+      _currentTimestamps = [DateTime.now().millisecondsSinceEpoch];
     });
   }
 
@@ -78,6 +87,7 @@ class DrawingCanvasState extends State<DrawingCanvas> {
     if (_currentStroke == null) return;
     setState(() {
       _currentStroke!.add(details.localPosition);
+      _currentTimestamps!.add(DateTime.now().millisecondsSinceEpoch);
     });
   }
 
@@ -85,7 +95,9 @@ class DrawingCanvasState extends State<DrawingCanvas> {
     if (_currentStroke == null || _currentStroke!.isEmpty) return;
     setState(() {
       _strokes.add(List<Offset>.from(_currentStroke!));
+      _timestamps.add(List<int>.from(_currentTimestamps!));
       _currentStroke = null;
+      _currentTimestamps = null;
     });
     _startDebounce();
   }
@@ -116,7 +128,7 @@ class DrawingCanvasState extends State<DrawingCanvas> {
         : CanvasState.drawing;
 
     return ConstrainedBox(
-      constraints: const BoxConstraints(minWidth: 80, minHeight: 100),
+      constraints: const BoxConstraints(minWidth: 152, minHeight: 190),
       child: AspectRatio(
         aspectRatio: 0.8, // slightly taller than wide
         child: Stack(

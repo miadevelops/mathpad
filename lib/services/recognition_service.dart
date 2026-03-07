@@ -1,41 +1,116 @@
 import 'dart:ui';
 
+import 'package:google_mlkit_digital_ink_recognition/google_mlkit_digital_ink_recognition.dart';
+
 /// Service that recognizes handwritten digits from stroke data.
 ///
 /// Attempts ML Kit digital ink recognition first, falling back to a
 /// simple heuristic recognizer so the app always works.
 class RecognitionService {
+  static const _languageCode = 'en';
+  static const _pointIntervalMs = 20;
+  static const _strokeGapMs = 200;
+
+  final _modelManager = DigitalInkRecognizerModelManager();
+  DigitalInkRecognizer? _recognizer;
   bool _initialized = false;
+  bool _mlKitAvailable = false;
 
   /// Initialize the service (download model, etc.).
   Future<void> initialize() async {
-    // ML Kit would download the model here.
-    // For now we use the heuristic fallback which needs no setup.
+    try {
+      final downloaded = await _modelManager.isModelDownloaded(_languageCode);
+      if (!downloaded) {
+        await _modelManager.downloadModel(_languageCode);
+      }
+      _recognizer = DigitalInkRecognizer(languageCode: _languageCode);
+      _mlKitAvailable = true;
+    } catch (_) {
+      _mlKitAvailable = false;
+    }
     _initialized = true;
   }
 
   /// Recognize a single digit (0-9) from [strokes] drawn within [canvasSize].
   ///
+  /// When [timestamps] are provided (milliseconds per point, parallel to
+  /// [strokes]), ML Kit uses the real timing data for better accuracy.
   /// Returns `null` when recognition fails or the result isn't a digit.
   Future<int?> recognizeDigit(
     List<List<Offset>> strokes,
-    Size canvasSize,
-  ) async {
+    Size canvasSize, {
+    List<List<int>>? timestamps,
+  }) async {
     if (!_initialized) await initialize();
     if (strokes.isEmpty) return null;
 
-    // ── ML Kit path would go here ──
-    // try {
-    //   return await _recognizeWithMlKit(strokes, canvasSize);
-    // } catch (_) {}
+    // ── ML Kit ──
+    if (_mlKitAvailable && _recognizer != null) {
+      try {
+        final result = await _recognizeWithMlKit(strokes, canvasSize, timestamps);
+        if (result != null) return result;
+      } catch (_) {}
+    }
 
     // ── Heuristic fallback ──
     return _heuristicRecognize(strokes, canvasSize);
   }
 
+  Future<int?> _recognizeWithMlKit(
+    List<List<Offset>> strokes,
+    Size canvasSize,
+    List<List<int>>? timestamps,
+  ) async {
+    final ink = Ink();
+    int syntheticTime = 0;
+
+    for (int s = 0; s < strokes.length; s++) {
+      final stroke = strokes[s];
+      final strokeTs =
+          (timestamps != null && s < timestamps.length) ? timestamps[s] : null;
+      final points = <StrokePoint>[];
+
+      for (int i = 0; i < stroke.length; i++) {
+        final t = (strokeTs != null && i < strokeTs.length)
+            ? strokeTs[i]
+            : syntheticTime;
+        points.add(StrokePoint(x: stroke[i].dx, y: stroke[i].dy, t: t));
+        syntheticTime += _pointIntervalMs;
+      }
+
+      ink.strokes.add(Stroke()..points.addAll(points));
+      syntheticTime += _strokeGapMs;
+    }
+
+    final candidates = await _recognizer!.recognize(
+      ink,
+      context: DigitalInkRecognitionContext(
+        writingArea: WritingArea(
+          width: canvasSize.width,
+          height: canvasSize.height,
+        ),
+      ),
+    );
+
+    for (final candidate in candidates) {
+      final text = candidate.text.trim();
+      if (text.length == 1) {
+        final digit = int.tryParse(text);
+        if (digit != null && digit >= 0 && digit <= 9) {
+          return digit;
+        }
+      }
+    }
+
+    return null;
+  }
+
   /// Release resources.
   void dispose() {
+    _recognizer?.close();
+    _recognizer = null;
     _initialized = false;
+    _mlKitAvailable = false;
   }
 
   // ---------------------------------------------------------------------------
