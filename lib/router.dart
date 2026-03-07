@@ -1,5 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
-import '../screens/screens.dart';
+
+import 'models/models.dart';
+import 'screens/screens.dart';
 
 final GoRouter router = GoRouter(
   initialLocation: '/',
@@ -14,7 +17,10 @@ final GoRouter router = GoRouter(
     ),
     GoRoute(
       path: '/exercise',
-      builder: (context, state) => const ExerciseScreen(),
+      builder: (context, state) {
+        final config = state.extra as SessionConfig?;
+        return ExerciseScreen(key: ValueKey(config));
+      },
     ),
     GoRoute(
       path: '/results',
