@@ -39,5 +39,27 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+    target.build_configurations.each do |config|
+      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
+    end
   end
+end
+
+# Workaround: Xcode 26 does not build the Pods_Runner umbrella framework as an
+# implicit workspace dependency. Remove the explicit framework reference from
+# the Runner target since all individual pods are already linked via OTHER_LDFLAGS.
+post_integrate do |installer|
+  project_path = File.join(__dir__, 'Runner.xcodeproj')
+  project = Xcodeproj::Project.open(project_path)
+  project.targets.each do |target|
+    phase = target.frameworks_build_phase
+    phase.files.to_a.each do |build_file|
+      ref = build_file.file_ref
+      next unless ref
+      if ref.path&.include?('Pods_Runner') || ref.path&.include?('Pods_RunnerTests')
+        phase.remove_build_file(build_file)
+      end
+    end
+  end
+  project.save
 end

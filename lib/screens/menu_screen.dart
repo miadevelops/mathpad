@@ -89,7 +89,7 @@ class _MenuScreenState extends State<MenuScreen>
             // Top-right icons
             SafeArea(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.only(top: 28, left: 16, right: 16, bottom: 16),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -318,13 +318,15 @@ class _StartButtonState extends State<_StartButton>
   }
 }
 
-// ── Background symbols (opacity increased) ────────────────
+// ── Background symbols (radial fade + size) ──────────────
 class _MathSymbolsBackground extends StatelessWidget {
   const _MathSymbolsBackground();
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
+    final center = Offset(size.width / 2, size.height / 2);
+    final maxDist = center.distance; // corner distance
     final rng = math.Random(42);
     const symbols = [
       '+', '−', '×', '÷', '=',
@@ -332,14 +334,34 @@ class _MathSymbolsBackground extends StatelessWidget {
       '?', '%',
     ];
 
+    const pastelColors = [
+      Color(0xFF5B8DEF), // blue
+      Color(0xFFEF7B5B), // coral / orange
+      Color(0xFF6BC98F), // green
+      Color(0xFFBB6BD9), // purple
+      Color(0xFFE06B9E), // pink
+      Color(0xFFE8A84C), // amber
+    ];
+
     return IgnorePointer(
       child: Stack(
-        children: List.generate(28, (i) {
+        children: List.generate(84, (i) {
           final symbol = symbols[i % symbols.length];
           final x = rng.nextDouble() * size.width;
           final y = rng.nextDouble() * size.height;
           final rotation = (rng.nextDouble() - 0.5) * 0.6;
-          final fontSize = 28.0 + rng.nextDouble() * 32;
+
+          // Distance from center, normalised 0..1
+          final dist = (Offset(x, y) - center).distance / maxDist;
+
+          // Radial opacity: ~0.06 at center → ~0.40 at edges
+          final alpha = 0.06 + dist * 0.34;
+
+          // Radial size: smaller near center, much larger at edges
+          final baseFontSize = 18.0 + rng.nextDouble() * 20;
+          final fontSize = baseFontSize * (0.5 + dist * 1.8);
+
+          final color = pastelColors[rng.nextInt(pastelColors.length)];
 
           return Positioned(
             left: x,
@@ -351,7 +373,7 @@ class _MathSymbolsBackground extends StatelessWidget {
                 style: GoogleFonts.comicNeue(
                   fontSize: fontSize,
                   fontWeight: FontWeight.w700,
-                  color: AppTheme.primaryBlue.withValues(alpha: 0.18),
+                  color: color.withValues(alpha: alpha),
                 ),
               ),
             ),

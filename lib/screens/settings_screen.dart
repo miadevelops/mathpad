@@ -113,7 +113,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_back_rounded, size: 32),
-                      onPressed: () => context.go('/'),
+                      onPressed: () => context.pop(),
                     ),
                     const SizedBox(width: 8),
                     Text(

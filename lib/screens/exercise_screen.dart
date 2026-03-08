@@ -451,6 +451,49 @@ class _ExerciseScreenState extends State<ExerciseScreen>
           Positioned.fill(
             child: ConfettiOverlay(controller: _confettiController),
           ),
+          // ── Correct banner (floats above everything) ──
+          if (_postSubmitMode == _PostSubmitMode.correct &&
+              _bannerScale != null)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                child: Center(
+                  child: AnimatedBuilder(
+                    animation: _bannerScale!,
+                    builder: (_, child) => Transform.scale(
+                      scale: _bannerScale!.value,
+                      child: child,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 28, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.successGreen,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.successGreen
+                                .withValues(alpha: 0.4),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        'Correct!',
+                        style: GoogleFonts.comicNeue(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -536,55 +579,6 @@ class _ExerciseScreenState extends State<ExerciseScreen>
       content = SlideTransition(
         position: _slideOutOffset,
         child: content,
-      );
-    }
-
-    // Correct banner overlay
-    if (_postSubmitMode == _PostSubmitMode.correct &&
-        _bannerScale != null) {
-      content = Stack(
-        clipBehavior: Clip.none,
-        children: [
-          content,
-          Positioned(
-            top: -10,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: AnimatedBuilder(
-                animation: _bannerScale!,
-                builder: (_, child) => Transform.scale(
-                  scale: _bannerScale!.value,
-                  child: child,
-                ),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 28, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: AppTheme.successGreen,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color:
-                            AppTheme.successGreen.withValues(alpha: 0.4),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Text(
-                    'Correct!',
-                    style: GoogleFonts.comicNeue(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
       );
     }
 
