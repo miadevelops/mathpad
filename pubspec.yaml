@@ -49,6 +49,23 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.3
+  flutter_native_splash: ^2.4.6
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/mathpad_icon.png"
+  adaptive_icon_background: "#F8F9FE"
+  adaptive_icon_foreground: "assets/icon/mathpad_icon.png"
+  remove_alpha_ios: true
+
+flutter_native_splash:
+  color: "#F8F9FE"
+  image: "assets/icon/mathpad_icon.png"
+  android_12:
+    color: "#F8F9FE"
+    image: "assets/icon/mathpad_icon.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
