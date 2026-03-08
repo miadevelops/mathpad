@@ -51,6 +51,20 @@ class _ExerciseScreenState extends State<ExerciseScreen>
   bool _showCarries = false;
   bool _showingResult = false; // true while showing correct/skip feedback
 
+  // ── Multiplication carry drawing state ──
+  /// Column positions that receive a carry (i.e. column i+1 for carry at i).
+  List<int> _carryPositions = [];
+  /// Recognized carry digit per carry column (null = not drawn yet).
+  Map<int, int?> _carryRecognized = {};
+  /// Strokes drawn in carry canvases for each carry column.
+  Map<int, List<List<Offset>>?> _carryStrokes = {};
+  /// Canvas keys for carry drawing canvases.
+  Map<int, GlobalKey<DrawingCanvasState>> _carryCanvasKeys = {};
+  /// Whether each carry canvas has been revealed (drawn+recognized).
+  Map<int, bool> _carryRevealed = {};
+  /// Whether to show the correct carry values (after correct answer).
+  bool _showCarryValues = false;
+
   // ── Problem results tracking ──
   final List<ProblemResult> _results = [];
 
@@ -122,6 +136,30 @@ class _ExerciseScreenState extends State<ExerciseScreen>
     _showCarries = false;
     _showingResult = false;
     _postSubmitMode = _PostSubmitMode.none;
+
+    // Set up multiplication carry drawing state.
+    if (problem.operation == OperationType.multiplication &&
+        problem.carryValues.isNotEmpty) {
+      // Carry at column i is displayed above column i+1 (the receiving column).
+      _carryPositions = problem.carryValues.keys
+          .map((col) => col + 1)
+          .toList()
+        ..sort();
+      _carryRecognized = {for (final pos in _carryPositions) pos: null};
+      _carryStrokes = {for (final pos in _carryPositions) pos: null};
+      _carryCanvasKeys = {
+        for (final pos in _carryPositions)
+          pos: GlobalKey<DrawingCanvasState>(),
+      };
+      _carryRevealed = {for (final pos in _carryPositions) pos: false};
+    } else {
+      _carryPositions = [];
+      _carryRecognized = {};
+      _carryStrokes = {};
+      _carryCanvasKeys = {};
+      _carryRevealed = {};
+    }
+    _showCarryValues = false;
   }
 
   // ── Drawing / recognition ──
@@ -151,6 +189,35 @@ class _ExerciseScreenState extends State<ExerciseScreen>
       _recognizedValues[boxIndex] = null;
       _digitStrokes[boxIndex] = null;
       _boxStates[boxIndex] = _DigitBoxState.empty;
+    });
+  }
+
+  // ── Carry drawing / recognition ──
+
+  Future<void> _onCarryDrawingComplete(
+      int col, List<List<Offset>> strokes) async {
+    if (_showingResult) return;
+    final timestamps = _carryCanvasKeys[col]?.currentState?.timestamps;
+    final digit = await _recognitionService.recognizeDigit(
+      strokes,
+      const Size(80, 100), // smaller carry canvas size
+      timestamps: timestamps,
+    );
+    if (!mounted) return;
+    setState(() {
+      _carryRecognized[col] = digit;
+      _carryStrokes[col] = strokes;
+      _carryRevealed[col] = digit != null;
+    });
+  }
+
+  void _clearCarryBox(int col) {
+    if (_showingResult) return;
+    _carryCanvasKeys[col]?.currentState?.clear();
+    setState(() {
+      _carryRecognized[col] = null;
+      _carryStrokes[col] = null;
+      _carryRevealed[col] = false;
     });
   }
 
@@ -188,6 +255,7 @@ class _ExerciseScreenState extends State<ExerciseScreen>
         _boxStates[i] = _DigitBoxState.correct;
       }
       _showCarries = true;
+      _showCarryValues = true;
       _postSubmitMode = _PostSubmitMode.correct;
     });
 
@@ -427,12 +495,12 @@ class _ExerciseScreenState extends State<ExerciseScreen>
 
                   // ── Main content ──
                   Expanded(
-                    child: Center(
-                      child: SingleChildScrollView(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 1330),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: SingleChildScrollView(
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
                             child: _buildProblemArea(problem),
                           ),
                         ),
@@ -596,15 +664,21 @@ class _ExerciseScreenState extends State<ExerciseScreen>
     // Add 1 extra column on the left for the operator symbol.
     final totalCols = maxCols + 1;
 
-    const boxSize = 160.0; // digit box width
+    const boxSize = 160.0;
     const boxSpacing = 17.0;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // ── Carry indicators ──
+        // ── Carry indicators (addition/subtraction) ──
         if (_showCarries && problem.carryDigits.isNotEmpty)
           _buildCarryRow(problem, maxCols, boxSize, boxSpacing, totalCols),
+
+        // ── Multiplication carry drawing row ──
+        if (problem.operation == OperationType.multiplication &&
+            _carryPositions.isNotEmpty)
+          _buildMultiplicationCarryRow(
+              problem, maxCols, boxSize, boxSpacing, totalCols),
 
         // ── First operand row ──
         _buildOperandRow(
@@ -680,6 +754,130 @@ class _ExerciseScreenState extends State<ExerciseScreen>
                           ),
                         )
                       : const SizedBox.shrink(),
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Interactive carry row for multiplication: small drawing canvases where
+  /// kids can write carry digits. After correct answer, shows the correct values.
+  Widget _buildMultiplicationCarryRow(
+      MathProblem problem, int maxCols, double boxSize, double boxSpacing,
+      int totalCols) {
+    const carryBoxSize = 70.0;
+    const carryBoxHeight = 88.0;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: SizedBox(
+        width: totalCols * (boxSize + boxSpacing),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            // Operator column placeholder
+            SizedBox(width: boxSize + boxSpacing),
+            ...List.generate(maxCols, (displayIdx) {
+              // displayIdx 0 = leftmost (highest place value)
+              final col = maxCols - 1 - displayIdx;
+              final hasCarry = _carryPositions.contains(col);
+              // The correct carry value (carry at col-1 is shown above col).
+              final correctValue = problem.carryValues[col - 1];
+
+              if (!hasCarry) {
+                return SizedBox(width: boxSize + boxSpacing);
+              }
+
+              // After correct answer, show the correct carry value.
+              if (_showCarryValues) {
+                final drawn = _carryRecognized[col];
+                final isCorrect = drawn == correctValue;
+                return SizedBox(
+                  width: boxSize + boxSpacing,
+                  child: Center(
+                    child: Container(
+                      width: carryBoxSize,
+                      height: carryBoxHeight,
+                      decoration: BoxDecoration(
+                        color: isCorrect
+                            ? AppTheme.successGreen.withValues(alpha: 0.08)
+                            : AppTheme.accentOrange.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isCorrect
+                              ? AppTheme.successGreen.withValues(alpha: 0.4)
+                              : AppTheme.accentOrange.withValues(alpha: 0.4),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '${correctValue ?? ''}',
+                          style: GoogleFonts.courierPrime(
+                            fontSize: 52,
+                            fontWeight: FontWeight.w700,
+                            color: isCorrect
+                                ? AppTheme.successGreen
+                                : AppTheme.accentOrange,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              // During solving: show drawing canvas or recognized digit.
+              final recognized = _carryRecognized[col];
+              final revealed = _carryRevealed[col] == true;
+
+              Widget carryChild;
+              if (revealed && recognized != null) {
+                // Show recognized carry digit (tappable to clear).
+                carryChild = Center(
+                  child: Text(
+                    '$recognized',
+                    style: GoogleFonts.courierPrime(
+                      fontSize: 52,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                );
+              } else {
+                // Show small drawing canvas for carry digit.
+                carryChild = DrawingCanvas(
+                  key: _carryCanvasKeys[col],
+                  onDrawingComplete: (strokes) =>
+                      _onCarryDrawingComplete(col, strokes),
+                  strokeWidth: 8,
+                );
+              }
+
+              return SizedBox(
+                width: boxSize + boxSpacing,
+                child: Center(
+                  child: GestureDetector(
+                    onTap: (revealed && !_showingResult)
+                        ? () => _clearCarryBox(col)
+                        : null,
+                    child: Container(
+                      width: carryBoxSize,
+                      height: carryBoxHeight,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: AppTheme.textSecondary.withValues(alpha: 0.2),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: carryChild,
+                    ),
+                  ),
                 ),
               );
             }),

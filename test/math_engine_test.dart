@@ -258,6 +258,61 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
+  // Multiplication carry detection
+  // -------------------------------------------------------------------------
+  group('Multiplication carry detection', () {
+    test('47 × 8: carry 5 at col 0, carry 3 at col 1', () {
+      // 7×8=56 → write 6, carry 5; 4×8=32+5=37 → write 37, carry 3
+      final carries = engine.detectMultiplicationCarries(47, 8);
+      expect(carries, {0: 5, 1: 3});
+    });
+
+    test('9 × 9: carry 8 at col 0', () {
+      // 9×9=81 → write 1, carry 8
+      final carries = engine.detectMultiplicationCarries(9, 9);
+      expect(carries, {0: 8});
+    });
+
+    test('3 × 2: no carries', () {
+      // 3×2=6 → no carry
+      final carries = engine.detectMultiplicationCarries(3, 2);
+      expect(carries, isEmpty);
+    });
+
+    test('99 × 9: carries at multiple columns', () {
+      // col 0: 9×9=81, carry=8; col 1: 9×9+8=89, carry=8; col 2: 0×9+8=8
+      final carries = engine.detectMultiplicationCarries(99, 9);
+      expect(carries, {0: 8, 1: 8});
+    });
+
+    test('25 × 4: carry 2 at col 0', () {
+      // col 0: 5×4=20, carry=2; col 1: 2×4+2=10, carry=1
+      final carries = engine.detectMultiplicationCarries(25, 4);
+      expect(carries, {0: 2, 1: 1});
+    });
+
+    test('10 × 5: no carries', () {
+      // col 0: 0×5=0, no carry; col 1: 1×5=5, no carry
+      final carries = engine.detectMultiplicationCarries(10, 5);
+      expect(carries, isEmpty);
+    });
+
+    test('generated multiplication problems have carryValues', () {
+      final config = SessionConfig(
+        difficulty: Difficulty.hard,
+        selectedOperations: [OperationType.multiplication],
+      );
+      for (int i = 0; i < 50; i++) {
+        final p = engine.generateProblem(config);
+        // carryValues should be consistent with manual calculation.
+        final expected =
+            engine.detectMultiplicationCarries(p.operand1, p.operand2);
+        expect(p.carryValues, expected);
+      }
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // Division
   // -------------------------------------------------------------------------
   group('Division', () {

@@ -181,6 +181,30 @@ class MathEngine {
     return carries;
   }
 
+  /// Detect carry values for multiplication (a × b, where b is single-digit).
+  /// Returns a map of column index → carry value produced by that column.
+  /// E.g. 47 × 8: column 0 produces carry 5, column 1 produces carry 3.
+  Map<int, int> detectMultiplicationCarries(int a, int b) {
+    final carries = <int, int>{};
+    int carry = 0;
+    int col = 0;
+    int va = a.abs();
+    final vb = b.abs();
+
+    while (va > 0 || carry > 0) {
+      final product = (va % 10) * vb + carry;
+      final newCarry = product ~/ 10;
+      if (newCarry > 0) {
+        carries[col] = newCarry;
+      }
+      carry = newCarry;
+      va ~/= 10;
+      col++;
+    }
+
+    return carries;
+  }
+
   /// Detect borrow columns for subtraction (a - b).
   List<int> detectBorrows(int a, int b) {
     final borrows = <int>[];
@@ -279,6 +303,7 @@ class MathEngine {
       operand2: b,
       operation: OperationType.multiplication,
       expectedAnswer: a * b,
+      carryValues: detectMultiplicationCarries(a, b),
     );
   }
 

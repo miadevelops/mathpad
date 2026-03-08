@@ -12,6 +12,10 @@ class MathProblem {
   /// Indices of digit positions that require borrowing (subtraction).
   final List<int> borrowDigits;
 
+  /// Column index → carry value for multiplication (e.g. {0: 5, 1: 3}).
+  /// A carry at column i is shown above column i+1 (the receiving column).
+  final Map<int, int> carryValues;
+
   const MathProblem({
     required this.operand1,
     required this.operand2,
@@ -19,6 +23,7 @@ class MathProblem {
     required this.expectedAnswer,
     this.carryDigits = const [],
     this.borrowDigits = const [],
+    this.carryValues = const {},
   });
 
   /// Human-readable representation: "12 + 5 = 17"
